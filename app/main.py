@@ -1,5 +1,6 @@
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -28,6 +29,20 @@ Base.metadata.create_all(
     bind=engine
 )
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info(
+        "AI Document Search Platform started"
+    )
+
+    yield
+
+    logger.info(
+        "AI Document Search Platform stopped"
+    )
+
+
 app = FastAPI(
     title="AI Document Search Platform",
     description=(
@@ -35,6 +50,7 @@ app = FastAPI(
         "using FastAPI, PostgreSQL, Qdrant, and RAG"
     ),
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 frontend_url = os.getenv(
@@ -76,10 +92,3 @@ def health_check():
     return {
         "status": "Healthy"
     }
-
-
-@app.on_event("startup")
-def startup_event():
-    logger.info(
-        "AI Document Search Platform started"
-    )

@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 from pathlib import Path
@@ -10,8 +11,12 @@ from app.ai.embeddings import EmbeddingModel
 from app.ai.pdf_reader import PDFReader
 from app.ai.text_splitter import TextSplitter
 from app.ai.vector_store import VectorStore
-from app.repositories.document_repository import DocumentRepository
+from app.repositories.document_repository import (
+    DocumentRepository,
+)
 
+
+logger = logging.getLogger(__name__)
 
 UPLOAD_FOLDER = "uploads"
 MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -131,20 +136,28 @@ class DocumentService:
                 user_id=user_id,
             )
 
-            print("\n" + "=" * 80)
-            print("DOCUMENT INDEXED SUCCESSFULLY")
-            print("=" * 80)
-            print(f"Document ID : {document.id}")
-            print(f"User ID     : {user_id}")
-            print(f"Filename    : {original_filename}")
-            print(f"Chunks      : {len(chunks)}")
-            print("=" * 80)
+            logger.info(
+                "Document indexed successfully: "
+                "document_id=%s user_id=%s "
+                "filename=%s chunks=%s",
+                document.id,
+                user_id,
+                original_filename,
+                len(chunks),
+            )
 
             return document
 
         except Exception:
             if os.path.exists(filepath):
                 os.remove(filepath)
+
+            logger.exception(
+                "Document upload failed: "
+                "user_id=%s filename=%s",
+                user_id,
+                original_filename,
+            )
 
             raise
 
@@ -188,6 +201,9 @@ class DocumentService:
             document=document,
         )
 
-        print(
-            f"Document {document_id} deleted successfully."
+        logger.info(
+            "Document deleted successfully: "
+            "document_id=%s user_id=%s",
+            document_id,
+            user_id,
         )

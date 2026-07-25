@@ -1,3 +1,4 @@
+import logging
 import os
 
 from dotenv import load_dotenv
@@ -15,6 +16,8 @@ from qdrant_client.models import (
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 COLLECTION_NAME = "documents"
 EMBEDDING_SIZE = 384
 
@@ -27,7 +30,6 @@ QDRANT_URL = os.getenv(
 class VectorStore:
 
     def __init__(self):
-
         self.client = QdrantClient(
             url=QDRANT_URL,
         )
@@ -44,13 +46,19 @@ class VectorStore:
         ]
 
         if COLLECTION_NAME not in existing_collections:
-
             self.client.create_collection(
                 collection_name=COLLECTION_NAME,
                 vectors_config=VectorParams(
                     size=EMBEDDING_SIZE,
                     distance=Distance.COSINE,
                 ),
+            )
+
+            logger.info(
+                "Created Qdrant collection: "
+                "collection=%s vector_size=%s",
+                COLLECTION_NAME,
+                EMBEDDING_SIZE,
             )
 
     def store_embeddings(
@@ -60,13 +68,11 @@ class VectorStore:
         document_id: int,
         user_id: int,
     ) -> None:
-
         points = []
 
         for index, (chunk, embedding) in enumerate(
             zip(chunks, embeddings)
         ):
-
             points.append(
                 PointStruct(
                     id=(document_id * 100000) + index,
@@ -81,6 +87,12 @@ class VectorStore:
             )
 
         if not points:
+            logger.warning(
+                "No embeddings supplied for storage: "
+                "document_id=%s user_id=%s",
+                document_id,
+                user_id,
+            )
             return
 
         self.client.upsert(
@@ -89,9 +101,12 @@ class VectorStore:
             wait=True,
         )
 
-        print(
-            f"Stored {len(points)} chunks "
-            f"for document {document_id}."
+        logger.info(
+            "Stored document embeddings: "
+            "document_id=%s user_id=%s chunks=%s",
+            document_id,
+            user_id,
+            len(points),
         )
 
     def delete_document(
@@ -99,7 +114,6 @@ class VectorStore:
         document_id: int,
         user_id: int,
     ) -> None:
-
         document_filter = Filter(
             must=[
                 FieldCondition(
@@ -125,7 +139,9 @@ class VectorStore:
             wait=True,
         )
 
-        print(
-            f"Deleted Qdrant vectors for "
-            f"document {document_id}."
+        logger.info(
+            "Deleted document embeddings: "
+            "document_id=%s user_id=%s",
+            document_id,
+            user_id,
         )

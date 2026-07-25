@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-DATABASE_URL="postgresql://username:password@localhost:5433/database_name"
+DATABASE_URL = "postgresql://postgres:1234@localhost:5433/ai_document_search"
 
 engine = create_engine(DATABASE_URL)
 

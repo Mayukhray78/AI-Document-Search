@@ -1,3 +1,6 @@
+import os
+
+from dotenv import load_dotenv
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,
@@ -10,8 +13,15 @@ from qdrant_client.models import (
 )
 
 
+load_dotenv()
+
 COLLECTION_NAME = "documents"
 EMBEDDING_SIZE = 384
+
+QDRANT_URL = os.getenv(
+    "QDRANT_URL",
+    "http://localhost:6333",
+)
 
 
 class VectorStore:
@@ -19,8 +29,7 @@ class VectorStore:
     def __init__(self):
 
         self.client = QdrantClient(
-            host="localhost",
-            port=6333,
+            url=QDRANT_URL,
         )
 
         collections = (
@@ -95,11 +104,15 @@ class VectorStore:
             must=[
                 FieldCondition(
                     key="document_id",
-                    match=MatchValue(value=document_id),
+                    match=MatchValue(
+                        value=document_id
+                    ),
                 ),
                 FieldCondition(
                     key="user_id",
-                    match=MatchValue(value=user_id),
+                    match=MatchValue(
+                        value=user_id
+                    ),
                 ),
             ]
         )

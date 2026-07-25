@@ -1,69 +1,65 @@
-from qdrant_client.models import (
-    FieldCondition,
-    Filter,
-    MatchValue,
-)
-
 from app.ai.embeddings import EmbeddingModel
-from app.ai.llm import LLMService
 from app.ai.vector_store import VectorStore
-
-
-embedding_model = EmbeddingModel()
-vector_store = VectorStore()
-llm = LLMService()
+from app.ai.llm import LLMService
 
 
 class RAGService:
 
-    def retrieve(
-        self,
-        question: str,
-        user_id: int,
-        top_k: int = 5,
-    ) -> list[str]:
+    def __init__(self):
+        self._embedding_model = None
+        self._vector_store = None
+        self._llm = None
 
-        query_vector = embedding_model.generate_embeddings(
+    @property
+    def embedding_model(self):
+        if self._embedding_model is None:
+            self._embedding_model = EmbeddingModel()
+
+        return self._embedding_model
+
+    @property
+    def vector_store(self):
+        if self._vector_store is None:
+            self._vector_store = VectorStore()
+
+        return self._vector_store
+
+    @property
+    def llm(self):
+        if self._llm is None:
+            self._llm = LLMService()
+
+        return self._llm
+
+    def retrieve(self, question: str, top_k: int = 5) -> list[str]:
+        query_vector = self.embedding_model.generate_embeddings(
             [question]
         )[0]
 
-        user_filter = Filter(
-            must=[
-                FieldCondition(
-                    key="user_id",
-                    match=MatchValue(value=user_id),
-                )
-            ]
-        )
-
-        response = vector_store.client.query_points(
+        response = self.vector_store.client.query_points(
             collection_name="documents",
             query=query_vector.tolist(),
-            query_filter=user_filter,
             limit=top_k,
             with_payload=True,
         )
 
-        chunks = []
+        return [
+            point.payload["text"]
+            for point in response.points
+            if point.payload and "text" in point.payload
+        ]
 
-        for point in response.points:
-            if point.payload and "text" in point.payload:
-                chunks.append(point.payload["text"])
+    def answer(self, question: str) -> dict:
+        chunks = self.retrieve(question)
 
-        return chunks
+        if not chunks:
+            return {
+                "question": question,
+                "answer": "I could not find relevant information in the uploaded documents.",
+                "retrieved_chunks": [],
+            }
 
-    def answer(
-        self,
-        question: str,
-        user_id: int,
-    ) -> dict:
-
-        chunks = self.retrieve(
-            question=question,
-            user_id=user_id,
-        )
-
-        answer = llm.generate_answer(
+        answer = self.llm.generate_answer(
             question=question,
             context=chunks,
         )

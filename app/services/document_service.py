@@ -13,18 +13,33 @@ from app.ai.vector_store import VectorStore
 from app.repositories.document_repository import DocumentRepository
 
 
-repo = DocumentRepository()
-
-reader = PDFReader()
-splitter = TextSplitter()
-embedding_model = EmbeddingModel()
-vector_store = VectorStore()
-
 UPLOAD_FOLDER = "uploads"
 MAX_FILE_SIZE = 10 * 1024 * 1024
 
 
 class DocumentService:
+
+    def __init__(self):
+        self.repo = DocumentRepository()
+        self.reader = PDFReader()
+        self.splitter = TextSplitter()
+
+        self._embedding_model = None
+        self._vector_store = None
+
+    @property
+    def embedding_model(self):
+        if self._embedding_model is None:
+            self._embedding_model = EmbeddingModel()
+
+        return self._embedding_model
+
+    @property
+    def vector_store(self):
+        if self._vector_store is None:
+            self._vector_store = VectorStore()
+
+        return self._vector_store
 
     def upload(
         self,
@@ -32,7 +47,6 @@ class DocumentService:
         file: UploadFile,
         user_id: int,
     ):
-
         original_filename = Path(
             file.filename or ""
         ).name
@@ -79,7 +93,7 @@ class DocumentService:
                     buffer,
                 )
 
-            extracted_text = reader.extract_text(
+            extracted_text = self.reader.extract_text(
                 filepath
             )
 
@@ -88,7 +102,7 @@ class DocumentService:
                     "No readable text was found in the PDF"
                 )
 
-            chunks = splitter.split_text(
+            chunks = self.splitter.split_text(
                 extracted_text
             )
 
@@ -98,19 +112,19 @@ class DocumentService:
                 )
 
             embeddings = (
-                embedding_model.generate_embeddings(
+                self.embedding_model.generate_embeddings(
                     chunks
                 )
             )
 
-            document = repo.create(
+            document = self.repo.create(
                 db=db,
                 filename=original_filename,
                 filepath=filepath,
                 user_id=user_id,
             )
 
-            vector_store.store_embeddings(
+            self.vector_store.store_embeddings(
                 chunks=chunks,
                 embeddings=embeddings,
                 document_id=document.id,
@@ -139,8 +153,7 @@ class DocumentService:
         db: Session,
         user_id: int,
     ):
-
-        return repo.get_all_by_user(
+        return self.repo.get_all_by_user(
             db=db,
             user_id=user_id,
         )
@@ -151,8 +164,7 @@ class DocumentService:
         document_id: int,
         user_id: int,
     ) -> None:
-
-        document = repo.get_by_id_and_user(
+        document = self.repo.get_by_id_and_user(
             db=db,
             document_id=document_id,
             user_id=user_id,
@@ -163,7 +175,7 @@ class DocumentService:
                 "Document not found or access denied"
             )
 
-        vector_store.delete_document(
+        self.vector_store.delete_document(
             document_id=document.id,
             user_id=user_id,
         )
@@ -171,7 +183,7 @@ class DocumentService:
         if os.path.exists(document.filepath):
             os.remove(document.filepath)
 
-        repo.delete(
+        self.repo.delete(
             db=db,
             document=document,
         )

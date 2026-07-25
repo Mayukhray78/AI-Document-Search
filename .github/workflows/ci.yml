@@ -31,6 +31,7 @@ jobs:
 
       - name: Run backend tests
         env:
+          DATABASE_URL: sqlite:///./test.db
           SECRET_KEY: github-actions-test-secret
         run: python -m pytest -v
 

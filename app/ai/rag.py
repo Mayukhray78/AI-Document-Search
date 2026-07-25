@@ -1,6 +1,6 @@
 from app.ai.embeddings import EmbeddingModel
-from app.ai.vector_store import VectorStore
 from app.ai.llm import LLMService
+from app.ai.vector_store import VectorStore
 
 
 class RAGService:
@@ -31,31 +31,40 @@ class RAGService:
 
         return self._llm
 
-    def retrieve(self, question: str, top_k: int = 5) -> list[str]:
-        query_vector = self.embedding_model.generate_embeddings(
-            [question]
-        )[0]
-
-        response = self.vector_store.client.query_points(
-            collection_name="documents",
-            query=query_vector.tolist(),
-            limit=top_k,
-            with_payload=True,
+    def retrieve(
+        self,
+        question: str,
+        user_id: int,
+        top_k: int = 5,
+    ) -> list[str]:
+        query_vector = (
+            self.embedding_model
+            .generate_embeddings([question])[0]
         )
 
-        return [
-            point.payload["text"]
-            for point in response.points
-            if point.payload and "text" in point.payload
-        ]
+        return self.vector_store.search(
+            query_vector=query_vector,
+            user_id=user_id,
+            top_k=top_k,
+        )
 
-    def answer(self, question: str) -> dict:
-        chunks = self.retrieve(question)
+    def answer(
+        self,
+        question: str,
+        user_id: int,
+    ) -> dict:
+        chunks = self.retrieve(
+            question=question,
+            user_id=user_id,
+        )
 
         if not chunks:
             return {
                 "question": question,
-                "answer": "I could not find relevant information in the uploaded documents.",
+                "answer": (
+                    "I could not find relevant information "
+                    "in the uploaded documents."
+                ),
                 "retrieved_chunks": [],
             }
 
